@@ -6,6 +6,8 @@
 import select
 import socket
 import sys
+import struct
+import binascii
 
 HOST = 'localhost'
 PORT = 4118
@@ -26,7 +28,14 @@ if __name__ == '__main__':
 	f = open(file_name, "rb")
 
 	data = f.read(seg_max_size)
+	values = (4119, 4119, 1, 1, 20, 0b00000010, 1, 1, 0)
+	TCPHeader = struct.Struct('H H I I B B H H H')
+	packed_data = TCPHeader.pack(*values)
+	print 'Uses :', TCPHeader.size, 'bytes'
+
+
 	while data:
+		data = packed_data + data
 		if s.sendto(data, (HOST, PORT)):
 			print 'keep sending'
 			data = f.read(seg_max_size)
