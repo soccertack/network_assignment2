@@ -14,9 +14,9 @@ PORT = 4118
 seg_max_size = 576
 
 file_name="linux-4.3.tar.xz"
-file_name="linux.txt"
+#file_name="linux.txt"
 
-if __name__ == '__main__':
+def main():
 	try:
 	    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	except socket.error:
@@ -28,7 +28,7 @@ if __name__ == '__main__':
 	f = open(file_name, "rb")
 
 	data = f.read(seg_max_size)
-	values = (4119, 4119, 1, 1, 20, 0b00000010, 1, 1, 0)
+	values = (PORT, PORT, 1, 1, 20, 0b00000010, 1, 1, 0)
 	TCPHeader = struct.Struct('H H I I B B H H H')
 	packed_data = TCPHeader.pack(*values)
 	print 'Uses :', TCPHeader.size, 'bytes'
@@ -37,8 +37,20 @@ if __name__ == '__main__':
 	while data:
 		data = packed_data + data
 		if s.sendto(data, (HOST, PORT)):
-			print 'keep sending'
+			#print 'keep sending'
 			data = f.read(seg_max_size)
+	
+	# Set FIN
+	values = (PORT, PORT, 1, 1, 20, 0b00000011, 1, 1, 0)
+	TCPHeader = struct.Struct('H H I I B B H H H')
+	packed_data = TCPHeader.pack(*values)
+	data = packed_data
+	s.sendto(data, (HOST, PORT))
+	print 'Sending FIN'
+
+	# Send FIN bit
 	f.close()
 	s.close()
 
+if __name__ == '__main__':
+	main()

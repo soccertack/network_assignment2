@@ -13,10 +13,11 @@ import binascii
 
 HOST = ''
 PORT = 4118
+FIN_BIT = 0x1
  
 file_name = "received.txt"
 
-if __name__ == '__main__':
+def main():
 	# Datagram (udp) socket
 	try :
 		s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -55,10 +56,14 @@ if __name__ == '__main__':
 		s.sendto(reply , addr)
 
 		#TODO: record packet headers to a log file (ordered)
-		print 'Message[' + addr[0] + ':' + str(addr[1]) + '] - ' + data.strip()
 		f.write(data[20:]);
 		(src, dst, seq, ack, header,flags, recv_win, checksum, urg)= TCPHeader.unpack(data[:20])
-		print src, dst, seq, ack, header,flags, recv_win, checksum, urg
-		break
+		#print src, dst, seq, ack, header,flags, recv_win, checksum, urg
+		if flags & FIN_BIT:
+			print 'Received FIN'
+			break
 	s.close()
 	f.close()
+
+if __name__ == '__main__':
+	main()
