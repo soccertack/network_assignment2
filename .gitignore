@@ -1,3 +1,4 @@
 linux*
 *.swp
 *.txt
+*.pyc

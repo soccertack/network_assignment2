@@ -10,6 +10,7 @@ from datetime import datetime
 from threading import Thread
 import struct
 import binascii
+from common import *
 
 HOST = ''
 PORT = 4118
@@ -58,7 +59,7 @@ def main():
 		#TODO: record packet headers to a log file (ordered)
 		f.write(data[20:]);
 		(src, dst, seq, ack, header,flags, recv_win, checksum, urg)= TCPHeader.unpack(data[:20])
-		#print src, dst, seq, ack, header,flags, recv_win, checksum, urg
+		print src, dst, seq, ack, header,flags, recv_win, checksum, urg
 		if flags & FIN_BIT:
 			print 'Received FIN'
 			break
