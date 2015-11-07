@@ -15,6 +15,7 @@ from datetime import timedelta
 HOST = 'localhost'
 PORT = 4118
 seg_max_size = 576
+header_length = 5 << 4 	# header size is 32 bit * 5
 
 file_name="linux-4.3.tar.xz"
 file_name="ls.svg"
@@ -25,10 +26,13 @@ def gobackN():
 	print 'gobackN'
 	
 def send_data(s, data, seq, ack):
-	flag = 0b00000010
+	flags = 0
 	if not data:
-		flag |= FIN_BIT
-	header = make_header(PORT, PORT, seq, ack, 20, flag, 1, 1, 0)
+		flags |= FIN_BIT
+	checksum = 0	#TODO
+	recv_win = 0	#TODO
+	urg = 0
+	header = make_header(PORT, PORT, seq, ack, header_length, flags, 0, 0, 0)
 	print data[0:10]
 	data = header + data
 	if s.sendto(data, (HOST, PORT)):
@@ -57,7 +61,7 @@ def handle_pkt(readable, ack):
 		# TODO: checksum 
 		'''
 		if checksum(payload) != checksum:
-		continue
+			continue
 		'''
 		if flags & ACK_BIT:
 			# TODO: check ack number
@@ -67,31 +71,50 @@ def handle_pkt(readable, ack):
 			fin_ack_recv = 1
 	return ack, fin_ack_recv
 
-
-def main():
+def make_socket():
 	try:
 	    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	except socket.error:
 	    print 'Failed to create socket'
 	    sys.exit()
+	return s
 
+def try_to_send(s, data, seq, ack, windows, file_position):
+	res = send_data (s, data, seq, ack)
+	size = len(data)
+	read_new_data = 0
+	fin_sent = 0
+
+	if res:
+		old_seq = seq
+		seq = old_seq + size
+		read_new_data = 1
+		windows.append((old_seq,datetime.now(), size, file_position))
+		if not data:
+			fin_sent = 1
+	return read_new_data, fin_sent
+
+
+def main():
+	s = make_socket()
 	inputs = []
 	inputs.append(s)
+
 	# TODO: exception for opening a file?
 	print "file_name" + file_name
 	f = open(file_name, "rb")
 	seq = 7000
 	ack = 88888888		# nobody cares
 
+	# initialization
 	window_size = 3
-
 	fin_ack_recv = 0
 	read_new_data = 1
 	timeout = 1
 	fin_sent = 0
 	exp_ack = 0
-	# Need to manage list of N
 	windows = []
+
 	while fin_ack_recv == 0:
 		file_position = f.tell()
 		if read_new_data:
@@ -101,41 +124,23 @@ def main():
 
 		if data or (not data and not fin_sent):
 			if len(windows) < window_size :
-				res = send_data (s, data, seq, ack)
-				size = len(data)
-				print size
-				if res:
-					old_seq = seq
-					seq = old_seq + size
-					read_new_data = 1
-					windows.append((old_seq,datetime.now(), size, file_position))
-					if not data:
-						fin_sent = 1
+				read_new_data, fin_sent = \
+					try_to_send(s, data, seq, ack, windows, file_position)
 				continue
 
 		# wait for data
+		# TODO: set timeout
 		readable = wait_for_data(inputs, timeout)
 		if readable:
 			ack, fin_ack_recv = handle_pkt(readable, ack)
+
+		# timeout check
 		if (datetime.now() - windows[0][1]) > timedelta(seconds=5):
 			read_new_data = 1
-			total_size = 0
-			for pkt in windows:
-				total_size += pkt[2]
-			print 'total size', total_size
 			f.seek(windows[0][3], 0)
 			seq = windows[0][0]
 			windows = []
 
-	# TODO increase ack?
-
-	# Set FIN
-	header = make_header (PORT, PORT, seq, ack, 20, 0b00000011, 1, 1, 0)
-	data = header
-	s.sendto(data, (HOST, PORT))
-	print 'Sending FIN'
-
-	# Send FIN bit
 	f.close()
 	s.close()
 
