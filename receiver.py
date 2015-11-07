@@ -14,7 +14,6 @@ from common import *
 
 HOST = ''
 PORT = 4118
-FIN_BIT = 0x1
  
 file_name = "received.txt"
 
@@ -53,13 +52,22 @@ def main():
 		 
 		reply = 'OK...' + data
 	   
-		# TODO: send ACK
-		s.sendto(reply , addr)
+		header = data[:20]
+	   	payload = data[20:]
+		(src, dst, seq, ack, header,flags, recv_win, checksum, urg)= TCPHeader.unpack(header)
+		print src, dst, seq, ack, header,flags, recv_win, checksum, urg
+
+		# TODO: checksum 
+		'''
+		if checksum(payload) != checksum:
+			continue
+		'''
+			
+		my_ack = make_header(PORT, PORT, ack, seq+1, 20, ACK_BIT, 1, 1, 0)
+		s.sendto(my_ack, addr)
 
 		#TODO: record packet headers to a log file (ordered)
 		f.write(data[20:]);
-		(src, dst, seq, ack, header,flags, recv_win, checksum, urg)= TCPHeader.unpack(data[:20])
-		print src, dst, seq, ack, header,flags, recv_win, checksum, urg
 		if flags & FIN_BIT:
 			print 'Received FIN'
 			break
