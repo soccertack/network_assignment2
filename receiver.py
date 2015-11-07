@@ -64,8 +64,8 @@ def main():
 		'''
 			
 		seq = recv_ack
-		ack = recv_seq + 1
-		my_ack = make_header(PORT, PORT, seq, ack, 20, ACK_BIT, 1, 1, 0)
+		ack = recv_seq + sys.getsizeof(payload) 
+		my_ack = make_header(PORT, PORT, seq, ack, 20, 0, 1, 1, 0)
 		s.sendto(my_ack, addr)
 
 		#TODO: record packet headers to a log file (ordered)

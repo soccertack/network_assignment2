@@ -9,6 +9,8 @@ import sys
 import struct
 import binascii
 from common import *
+from datetime import datetime
+from datetime import timedelta
 
 HOST = 'localhost'
 PORT = 4118
@@ -19,11 +21,15 @@ file_name="ls.svg"
 file_name="linux.txt"
 file_name="second.coz"
 
+def gobackN():
+	print 'gobackN'
+	
 def send_data(s, data, seq, ack):
 	flag = 0b00000010
 	if not data:
 		flag |= FIN_BIT
 	header = make_header(PORT, PORT, seq, ack, 20, flag, 1, 1, 0)
+	print data[0:10]
 	data = header + data
 	if s.sendto(data, (HOST, PORT)):
 		return 1
@@ -34,7 +40,7 @@ def wait_for_data (inputs, timeout):
 	readable, writable, exceptional = select.select(inputs, outputs, inputs, timeout)
 	return readable
 
-def handle_pkt(readable, cur_window, ack):
+def handle_pkt(readable, ack):
 	fin_ack_recv = 0
 	for item in readable:
 		d = item.recvfrom(1024)
@@ -54,11 +60,12 @@ def handle_pkt(readable, cur_window, ack):
 		continue
 		'''
 		if flags & ACK_BIT:
+			# TODO: check ack number
 			ack = recv_seq +1
+			# TODO: remove matching item from the window
 		if flags & FIN_BIT:
 			fin_ack_recv = 1
-		cur_window += 1
-	return cur_window, ack, fin_ack_recv
+	return ack, fin_ack_recv
 
 
 def main():
@@ -76,34 +83,49 @@ def main():
 	seq = 7000
 	ack = 88888888		# nobody cares
 
-	cur_window = 3
+	window_size = 3
 
 	fin_ack_recv = 0
 	read_new_data = 1
 	timeout = 1
 	fin_sent = 0
+	exp_ack = 0
+	# Need to manage list of N
+	windows = []
 	while fin_ack_recv == 0:
+		file_position = f.tell()
 		if read_new_data:
 			data = f.read(seg_max_size)
+			print 'current fseek', f.tell()
 			read_new_data = 0
 
 		if data or (not data and not fin_sent):
-			if cur_window != 0:
+			if len(windows) < window_size :
 				res = send_data (s, data, seq, ack)
+				size = len(data)
+				print size
 				if res:
-					seq += sys.getsizeof(data)
-					cur_window -= 1
+					old_seq = seq
+					seq = old_seq + size
 					read_new_data = 1
-					print 'send data'
+					windows.append((old_seq,datetime.now(), size, file_position))
 					if not data:
 						fin_sent = 1
 				continue
-		print 'wait for data'
+
+		# wait for data
 		readable = wait_for_data(inputs, timeout)
 		if readable:
-			cur_window, ack, fin_ack_recv = handle_pkt(readable, cur_window, ack)
-		else:
-			print 'gobackn'
+			ack, fin_ack_recv = handle_pkt(readable, ack)
+		if (datetime.now() - windows[0][1]) > timedelta(seconds=5):
+			read_new_data = 1
+			total_size = 0
+			for pkt in windows:
+				total_size += pkt[2]
+			print 'total size', total_size
+			f.seek(windows[0][3], 0)
+			seq = windows[0][0]
+			windows = []
 
 	# TODO increase ack?
 
