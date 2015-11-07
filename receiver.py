@@ -54,8 +54,8 @@ def main():
 	   
 		header = data[:20]
 	   	payload = data[20:]
-		(src, dst, seq, ack, header,flags, recv_win, checksum, urg)= TCPHeader.unpack(header)
-		print src, dst, seq, ack, header,flags, recv_win, checksum, urg
+		(src, dst, recv_seq, recv_ack, header,flags, recv_win, checksum, urg)= TCPHeader.unpack(header)
+		print src, dst, recv_seq, recv_ack, header,flags, recv_win, checksum, urg
 
 		# TODO: checksum 
 		'''
@@ -63,13 +63,18 @@ def main():
 			continue
 		'''
 			
-		my_ack = make_header(PORT, PORT, ack, seq+1, 20, ACK_BIT, 1, 1, 0)
+		seq = recv_ack
+		ack = recv_seq + 1
+		my_ack = make_header(PORT, PORT, seq, ack, 20, ACK_BIT, 1, 1, 0)
 		s.sendto(my_ack, addr)
 
 		#TODO: record packet headers to a log file (ordered)
 		f.write(data[20:]);
+
 		if flags & FIN_BIT:
 			print 'Received FIN'
+			my_ack = make_header(PORT, PORT, seq, ack, 20, ACK_BIT|FIN_BIT, 1, 1, 0)
+			s.sendto(my_ack, addr)
 			break
 	s.close()
 	f.close()
