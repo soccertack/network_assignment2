@@ -72,7 +72,7 @@ def main():
 		seq = recv_ack
 		ack = recv_seq + len(payload) 
 		my_ack = make_header(MY_PORT, src, seq, ack, 20, 0, 1, 1, 0)
-		s.sendto(my_ack, addr)
+		s.sendto(my_ack, addr) # TODO: check if this is sending back to proxy
 
 		#TODO: record packet headers to a log file (ordered)
 		f.write(data[20:]);

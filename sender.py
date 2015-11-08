@@ -15,6 +15,8 @@ from crc import *
 
 HOST = 'localhost'
 MY_PORT = 20001
+
+REMOTE_IP = 'localhost'
 REMOTE_PORT = 20000
 seg_max_size = 576
 header_length = 5 << 4 	# header size is 32 bit * 5
@@ -32,8 +34,8 @@ def send_data(s, data, seq, ack):
 	flags = 0
 	if not data:
 		flags |= FIN_BIT
-	checksum = 0	#TODO
-	recv_win = 0	#TODO
+	checksum = 0
+	recv_win = 0
 	urg = 0
 
 	header = make_header(MY_PORT, REMOTE_PORT, seq, ack, header_length, flags, recv_win, checksum, urg)
@@ -43,7 +45,7 @@ def send_data(s, data, seq, ack):
 
 	header = make_header(MY_PORT, REMOTE_PORT, seq, ack, header_length, flags, recv_win, checksum, urg)
 	data = header + data
-	if s.sendto(data, (HOST, 20000)):
+	if s.sendto(data, (REMOTE_IP, REMOTE_PORT)):
 		return 1
 	return 0
 
