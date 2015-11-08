@@ -99,7 +99,7 @@ def try_to_send(s, data, seq, ack, windows, file_position):
 		windows.append((old_seq,datetime.now(), size, file_position))
 		if not data:
 			fin_sent = 1
-	return read_new_data, fin_sent
+	return read_new_data, seq, fin_sent
 
 
 def main():
@@ -110,7 +110,7 @@ def main():
 	# TODO: exception for opening a file?
 	print "file_name" + file_name
 	f = open(file_name, "rb")
-	seq = 7000
+	seq = INIT_SEQ 
 	ack = 88888888		# nobody cares
 
 	# initialization
@@ -132,7 +132,7 @@ def main():
 
 		if data or (not data and not fin_sent):
 			if len(windows) < window_size :
-				read_new_data, fin_sent = \
+				read_new_data, seq, fin_sent = \
 					try_to_send(s, data, seq, ack, windows, file_position)
 				continue
 

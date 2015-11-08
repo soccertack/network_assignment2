@@ -42,6 +42,7 @@ def main():
 	TCPHeader = struct.Struct('H H I I B B H H H')
  
 	f = open(file_name, "wb")
+	exp_seq = INIT_SEQ
 	#now keep talking with the client
 	while 1:
 		# receive data from client (data, addr)
@@ -56,18 +57,22 @@ def main():
 	   
 		header = data[:20]
 	   	payload = data[20:]
-		(src, dst, recv_seq, recv_ack, header,flags, recv_win, checksum, urg)= TCPHeader.unpack(header)
+		(src, dst, recv_seq, recv_ack, header,flags, recv_win, checksum, urg)\
+			= TCPHeader.unpack(header)
 		print src, dst, recv_seq, recv_ack, header,flags, recv_win, checksum, urg
 
-		# TODO: checksum 
 		tmp_header = make_header(src, dst, recv_seq, recv_ack, header, flags, recv_win, 0, urg)
 		checksum_calc = calc_crc_16(tmp_header+payload)
 		if checksum_calc != checksum:
 			continue	# Wrong packet
-		print ' Got a uncorrupted packet'
 	
+		if recv_seq != exp_seq:
+			print 'NOT expected seq'
+			continue
+		print 'Got an uncorrupted, ordered packet'
+		exp_seq += len(payload)
 		seq = recv_ack
-		ack = recv_seq + sys.getsizeof(payload) 
+		ack = recv_seq + len(payload) 
 		my_ack = make_header(PORT, PORT, seq, ack, 20, 0, 1, 1, 0)
 		s.sendto(my_ack, addr)
 
