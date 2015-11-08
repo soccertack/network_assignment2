@@ -11,6 +11,7 @@ from threading import Thread
 import struct
 import binascii
 from common import *
+from crc import *
 
 HOST = ''
 PORT = 4118
@@ -27,6 +28,7 @@ def main():
 		sys.exit()
 	 
 	 
+	init_crc16()
 	# Bind socket to local host and port
 	try:
 		s.bind((HOST, PORT))
@@ -58,11 +60,12 @@ def main():
 		print src, dst, recv_seq, recv_ack, header,flags, recv_win, checksum, urg
 
 		# TODO: checksum 
-		'''
-		if checksum(payload) != checksum:
-			continue
-		'''
-			
+		tmp_header = make_header(src, dst, recv_seq, recv_ack, header, flags, recv_win, 0, urg)
+		checksum_calc = calc_crc_16(tmp_header+payload)
+		if checksum_calc != checksum:
+			continue	# Wrong packet
+		print ' Got a uncorrupted packet'
+	
 		seq = recv_ack
 		ack = recv_seq + sys.getsizeof(payload) 
 		my_ack = make_header(PORT, PORT, seq, ack, 20, 0, 1, 1, 0)

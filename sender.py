@@ -11,6 +11,7 @@ import binascii
 from common import *
 from datetime import datetime
 from datetime import timedelta
+from crc import *
 
 HOST = 'localhost'
 PORT = 4118
@@ -22,6 +23,7 @@ file_name="ls.svg"
 file_name="linux.txt"
 file_name="second.coz"
 
+
 def gobackN():
 	print 'gobackN'
 	
@@ -32,8 +34,13 @@ def send_data(s, data, seq, ack):
 	checksum = 0	#TODO
 	recv_win = 0	#TODO
 	urg = 0
-	header = make_header(PORT, PORT, seq, ack, header_length, flags, 0, 0, 0)
+
+	header = make_header(PORT, PORT, seq, ack, header_length, flags, recv_win, checksum, urg)
 	print data[0:10]
+	tmp_data = header + data
+	checksum = calc_crc_16(tmp_data);
+
+	header = make_header(PORT, PORT, seq, ack, header_length, flags, recv_win, checksum, urg)
 	data = header + data
 	if s.sendto(data, (HOST, PORT)):
 		return 1
@@ -114,6 +121,7 @@ def main():
 	fin_sent = 0
 	exp_ack = 0
 	windows = []
+	init_crc16()
 
 	while fin_ack_recv == 0:
 		file_position = f.tell()
