@@ -14,7 +14,8 @@ from common import *
 from crc import *
 
 HOST = ''
-PORT = 4118
+MY_PORT = 20000
+REMOTE_PORT = 20001
  
 file_name = "received.txt"
 
@@ -31,14 +32,13 @@ def main():
 	init_crc16()
 	# Bind socket to local host and port
 	try:
-		s.bind((HOST, PORT))
+		s.bind((HOST, MY_PORT))
 	except socket.error , msg:
 		print 'Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
 		sys.exit()
 		 
 	print 'Socket bind complete'
 
-	values = (4119, 4119, 1, 1, 20, 0b00000000, 1, 1, 0)
 	TCPHeader = struct.Struct('H H I I B B H H H')
  
 	f = open(file_name, "wb")
@@ -53,8 +53,6 @@ def main():
 		if not data: 
 			break
 		 
-		reply = 'OK...' + data
-	   
 		header = data[:20]
 	   	payload = data[20:]
 		(src, dst, recv_seq, recv_ack, header,flags, recv_win, checksum, urg)\
@@ -73,7 +71,7 @@ def main():
 		exp_seq += len(payload)
 		seq = recv_ack
 		ack = recv_seq + len(payload) 
-		my_ack = make_header(PORT, PORT, seq, ack, 20, 0, 1, 1, 0)
+		my_ack = make_header(MY_PORT, src, seq, ack, 20, 0, 1, 1, 0)
 		s.sendto(my_ack, addr)
 
 		#TODO: record packet headers to a log file (ordered)
@@ -81,7 +79,7 @@ def main():
 
 		if flags & FIN_BIT:
 			print 'Received FIN'
-			my_ack = make_header(PORT, PORT, seq, ack, 20, ACK_BIT|FIN_BIT, 1, 1, 0)
+			my_ack = make_header(MY_PORT, src, seq, ack, 20, ACK_BIT|FIN_BIT, 1, 1, 0)
 			s.sendto(my_ack, addr)
 			break
 	s.close()

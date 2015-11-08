@@ -14,7 +14,8 @@ from datetime import timedelta
 from crc import *
 
 HOST = 'localhost'
-PORT = 4118
+MY_PORT = 20001
+REMOTE_PORT = 20000
 seg_max_size = 576
 header_length = 5 << 4 	# header size is 32 bit * 5
 
@@ -35,14 +36,14 @@ def send_data(s, data, seq, ack):
 	recv_win = 0	#TODO
 	urg = 0
 
-	header = make_header(PORT, PORT, seq, ack, header_length, flags, recv_win, checksum, urg)
+	header = make_header(MY_PORT, REMOTE_PORT, seq, ack, header_length, flags, recv_win, checksum, urg)
 	print data[0:10]
 	tmp_data = header + data
 	checksum = calc_crc_16(tmp_data);
 
-	header = make_header(PORT, PORT, seq, ack, header_length, flags, recv_win, checksum, urg)
+	header = make_header(MY_PORT, REMOTE_PORT, seq, ack, header_length, flags, recv_win, checksum, urg)
 	data = header + data
-	if s.sendto(data, (HOST, PORT)):
+	if s.sendto(data, (HOST, 20000)):
 		return 1
 	return 0
 
@@ -84,6 +85,7 @@ def make_socket():
 	except socket.error:
 	    print 'Failed to create socket'
 	    sys.exit()
+	s.bind((HOST,MY_PORT))
 	return s
 
 def try_to_send(s, data, seq, ack, windows, file_position):
