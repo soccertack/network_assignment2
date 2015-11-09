@@ -21,11 +21,15 @@ REMOTE_PORT = 20000
 seg_max_size = 576
 header_length = 5 << 4 	# header size is 32 bit * 5
 
-file_name="linux-4.3.tar.xz"
 file_name="ls.svg"
 file_name="linux.txt"
 file_name="second.coz"
+file_name="linux-4.3.tar.xz"
 
+WIN_TIME=1
+WIN_SEQ=0
+WIN_SIZE=2
+WIN_FOFFSET=3
 
 def gobackN():
 	print 'gobackN'
@@ -54,7 +58,7 @@ def wait_for_data (inputs, timeout):
 	readable, writable, exceptional = select.select(inputs, outputs, inputs, timeout)
 	return readable
 
-def handle_pkt(readable, ack):
+def handle_pkt(readable, ack, windows):
 	fin_ack_recv = 0
 	for item in readable:
 		d = item.recvfrom(1024)
@@ -68,18 +72,13 @@ def handle_pkt(readable, ack):
 		payload = data[20:]
 		(src, dst, recv_seq, recv_ack, header,flags, recv_win, checksum, urg)= TCPHeader.unpack(header)
 		print src, dst, recv_seq, recv_ack, header,flags, recv_win, checksum, urg
-		# TODO: checksum 
-		'''
-		if checksum(payload) != checksum:
-			continue
-		'''
 		if flags & ACK_BIT:
-			# TODO: check ack number
-			ack = recv_seq +1
-			# TODO: remove matching item from the window
+			if recv_ack == (windows[0][WIN_SEQ] + windows[0][WIN_SIZE]):
+				windows.remove(windows[0])
 		if flags & FIN_BIT:
 			fin_ack_recv = 1
-	return ack, fin_ack_recv
+			print 'Got a FIN'
+	return ack, fin_ack_recv, windows
 
 def make_socket():
 	try:
@@ -144,13 +143,16 @@ def main():
 		# TODO: set timeout
 		readable = wait_for_data(inputs, timeout)
 		if readable:
-			ack, fin_ack_recv = handle_pkt(readable, ack)
+			ack, fin_ack_recv, windows = handle_pkt(readable, ack, windows)
+
+		if len(windows) == 0:
+			continue
 
 		# timeout check
-		if (datetime.now() - windows[0][1]) > timedelta(seconds=5):
+		if (datetime.now() - windows[0][WIN_TIME]) > timedelta(seconds=5):
 			read_new_data = 1
-			f.seek(windows[0][3], 0)
-			seq = windows[0][0]
+			f.seek(windows[0][WIN_FOFFSET], 0)
+			seq = windows[0][WIN_SEQ]
 			windows = []
 
 	f.close()

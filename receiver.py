@@ -71,7 +71,7 @@ def main():
 		exp_seq += len(payload)
 		seq = recv_ack
 		ack = recv_seq + len(payload) 
-		my_ack = make_header(MY_PORT, src, seq, ack, 20, 0, 1, 1, 0)
+		my_ack = make_header(MY_PORT, src, seq, ack, 20, ACK_BIT, 1, 1, 0)
 		s.sendto(my_ack, addr) # TODO: check if this is sending back to proxy
 
 		#TODO: record packet headers to a log file (ordered)
@@ -79,7 +79,7 @@ def main():
 
 		if flags & FIN_BIT:
 			print 'Received FIN'
-			my_ack = make_header(MY_PORT, src, seq, ack, 20, ACK_BIT|FIN_BIT, 1, 1, 0)
+			my_ack = make_header(MY_PORT, src, seq, ack, 20, FIN_BIT, 1, 1, 0)
 			s.sendto(my_ack, addr)
 			break
 	s.close()
