@@ -14,10 +14,10 @@ from datetime import timedelta
 from crc import *
 
 HOST = 'localhost'
-MY_PORT = 20001
+my_port = 20001
 
-REMOTE_IP = 'localhost'
-REMOTE_PORT = 20000
+remote_ip = 'localhost'
+remote_port = 20000
 seg_max_size = 576
 header_length = 5 << 4 	# header size is 32 bit * 5
 
@@ -25,6 +25,8 @@ file_name="ls.svg"
 file_name="linux.txt"
 file_name="second.coz"
 file_name="linux-4.3.tar.xz"
+
+window_size = 0
 
 WIN_TIME=1
 WIN_SEQ=0
@@ -42,14 +44,14 @@ def send_data(s, data, seq, ack):
 	recv_win = 0
 	urg = 0
 
-	header = make_header(MY_PORT, REMOTE_PORT, seq, ack, header_length, flags, recv_win, checksum, urg)
+	header = make_header(my_port, remote_port, seq, ack, header_length, flags, recv_win, checksum, urg)
 	print data[0:10]
 	tmp_data = header + data
 	checksum = calc_crc_16(tmp_data);
 
-	header = make_header(MY_PORT, REMOTE_PORT, seq, ack, header_length, flags, recv_win, checksum, urg)
+	header = make_header(my_port, remote_port, seq, ack, header_length, flags, recv_win, checksum, urg)
 	data = header + data
-	if s.sendto(data, (REMOTE_IP, REMOTE_PORT)):
+	if s.sendto(data, (remote_ip, remote_port)):
 		return 1
 	return 0
 
@@ -86,7 +88,7 @@ def make_socket():
 	except socket.error:
 	    print 'Failed to create socket'
 	    sys.exit()
-	s.bind((HOST,MY_PORT))
+	s.bind((HOST,my_port))
 	return s
 
 def try_to_send(s, data, seq, ack, windows, file_position):
@@ -104,8 +106,26 @@ def try_to_send(s, data, seq, ack, windows, file_position):
 			fin_sent = 1
 	return read_new_data, seq, fin_sent
 
+def handle_input(argv):
+
+	argc = len(argv)
+	if argc != 6 and argc !=7:
+		print 'Usage: ./sender.py filename remote_IP remote_port  \
+			ack_port_num log_filename window_size'
+		sys.exit()
+	global file_name, remote_ip, remote_port, my_port, log_file, window_size
+	file_name = argv[1]
+	remote_ip = argv[2]
+	remote_port = int(argv[3])
+	my_port	= int(argv[4])
+	log_file = argv[5]
+	window_size = 1
+	if argc == 7:
+		window_size = int(argv[6])
 
 def main():
+
+	handle_input(sys.argv)
 	s = make_socket()
 	inputs = []
 	inputs.append(s)
@@ -117,7 +137,6 @@ def main():
 	ack = 88888888		# nobody cares
 
 	# initialization
-	window_size = 3
 	fin_ack_recv = 0
 	read_new_data = 1
 	timeout = 1
