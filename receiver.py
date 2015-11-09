@@ -14,13 +14,27 @@ from common import *
 from crc import *
 
 HOST = ''
-MY_PORT = 20000
-REMOTE_PORT = 20001
+my_port = 20000
+sender_ip = 'localhost'
+sender_port = 20001
  
 file_name = "received.txt"
 
+def handle_input(argv):
+	argc = len(argv)
+	if argc != 6:
+		print 'Usage: ./receiver.py filename listening_port sender_IP sender_port log_file  '
+		sys.exit()
+	global file_name, remote_ip, remote_port, my_port, log_file, window_size
+	file_name = argv[1]
+	my_port	= int(argv[2])
+	sender_ip = argv[3]
+	sender_port = int(argv[4])
+	log_file = argv[5]
+
 def main():
-	# Datagram (udp) socket
+	handle_input(sys.argv)
+
 	try :
 		s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		print 'Socket created'
@@ -32,7 +46,7 @@ def main():
 	init_crc16()
 	# Bind socket to local host and port
 	try:
-		s.bind((HOST, MY_PORT))
+		s.bind((HOST, my_port))
 	except socket.error , msg:
 		print 'Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
 		sys.exit()
@@ -71,7 +85,7 @@ def main():
 		exp_seq += len(payload)
 		seq = recv_ack
 		ack = recv_seq + len(payload) 
-		my_ack = make_header(MY_PORT, src, seq, ack, 20, ACK_BIT, 1, 1, 0)
+		my_ack = make_header(my_port, src, seq, ack, 20, ACK_BIT, 1, 1, 0)
 		s.sendto(my_ack, addr) # TODO: check if this is sending back to proxy
 
 		#TODO: record packet headers to a log file (ordered)
@@ -79,7 +93,7 @@ def main():
 
 		if flags & FIN_BIT:
 			print 'Received FIN'
-			my_ack = make_header(MY_PORT, src, seq, ack, 20, FIN_BIT, 1, 1, 0)
+			my_ack = make_header(my_port, src, seq, ack, 20, FIN_BIT, 1, 1, 0)
 			s.sendto(my_ack, addr)
 			break
 	s.close()
