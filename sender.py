@@ -79,6 +79,7 @@ def handle_pkt(readable, ack, windows, f_log):
 				windows.remove(windows[0])
 		if flags & FIN_BIT:
 			fin_ack_recv = 1
+		ack = recv_seq + len(payload) + 1
 	return ack, fin_ack_recv, windows
 
 def make_socket():
@@ -138,7 +139,7 @@ def main():
 		f_log = open(log_file, "w")
 
 	seq = INIT_SEQ 
-	ack = 88888888		# nobody cares
+	ack = INIT_SEQ # nobody cares
 
 	# initialization
 	fin_ack_recv = 0

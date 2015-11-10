@@ -35,6 +35,7 @@ def handle_input(argv):
 def main():
 	handle_input(sys.argv)
 
+	seq = INIT_SEQ 
 	try :
 		s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		print 'Socket created'
@@ -87,7 +88,6 @@ def main():
 		if recv_seq != exp_seq:
 			continue
 		exp_seq += len(payload)
-		seq = recv_ack
 		ack = recv_seq + len(payload) 
 		flags = ACK_BIT
 		if recv_flags & FIN_BIT:
