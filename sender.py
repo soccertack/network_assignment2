@@ -9,7 +9,6 @@ import sys
 import struct
 import binascii
 from common import *
-from datetime import datetime
 from datetime import timedelta
 from crc import *
 
@@ -36,7 +35,7 @@ WIN_FOFFSET=3
 def gobackN():
 	print 'gobackN'
 	
-def send_data(s, data, seq, ack):
+def send_data(s, data, seq, ack, f_log):
 	flags = 0
 	if not data:
 		flags |= FIN_BIT
@@ -45,12 +44,12 @@ def send_data(s, data, seq, ack):
 	urg = 0
 
 	header = make_header(my_port, remote_port, seq, ack, header_length, flags, recv_win, checksum, urg)
-	print data[0:10]
 	tmp_data = header + data
 	checksum = calc_crc_16(tmp_data);
 
 	header = make_header(my_port, remote_port, seq, ack, header_length, flags, recv_win, checksum, urg)
 	data = header + data
+	write_log(my_port, remote_port, seq, ack, flags, f_log)
 	if s.sendto(data, (remote_ip, remote_port)):
 		return 1
 	return 0
@@ -60,7 +59,7 @@ def wait_for_data (inputs, timeout):
 	readable, writable, exceptional = select.select(inputs, outputs, inputs, timeout)
 	return readable
 
-def handle_pkt(readable, ack, windows):
+def handle_pkt(readable, ack, windows, f_log):
 	fin_ack_recv = 0
 	for item in readable:
 		d = item.recvfrom(1024)
@@ -73,13 +72,13 @@ def handle_pkt(readable, ack, windows):
 		header = data[:20]
 		payload = data[20:]
 		(src, dst, recv_seq, recv_ack, header,flags, recv_win, checksum, urg)= TCPHeader.unpack(header)
-		print src, dst, recv_seq, recv_ack, header,flags, recv_win, checksum, urg
+
+		write_log(src, dst, recv_seq, recv_ack, flags, f_log, (datetime.now()-windows[0][WIN_TIME]).total_seconds()*1000)
 		if flags & ACK_BIT:
 			if recv_ack == (windows[0][WIN_SEQ] + windows[0][WIN_SIZE]):
 				windows.remove(windows[0])
 		if flags & FIN_BIT:
 			fin_ack_recv = 1
-			print 'Got a FIN'
 	return ack, fin_ack_recv, windows
 
 def make_socket():
@@ -91,8 +90,8 @@ def make_socket():
 	s.bind((HOST,my_port))
 	return s
 
-def try_to_send(s, data, seq, ack, windows, file_position):
-	res = send_data (s, data, seq, ack)
+def try_to_send(s, data, seq, ack, windows, file_position, f_log):
+	res = send_data (s, data, seq, ack, f_log)
 	size = len(data)
 	read_new_data = 0
 	fin_sent = 0
@@ -133,6 +132,11 @@ def main():
 	# TODO: exception for opening a file?
 	print "file_name" + file_name
 	f = open(file_name, "rb")
+	if log_file == "stdout":
+		f_log = sys.stdout
+	else:
+		f_log = open(log_file, "w")
+
 	seq = INIT_SEQ 
 	ack = 88888888		# nobody cares
 
@@ -149,20 +153,19 @@ def main():
 		file_position = f.tell()
 		if read_new_data:
 			data = f.read(seg_max_size)
-			print 'current fseek', f.tell()
 			read_new_data = 0
 
 		if data or (not data and not fin_sent):
 			if len(windows) < window_size :
 				read_new_data, seq, fin_sent = \
-					try_to_send(s, data, seq, ack, windows, file_position)
+					try_to_send(s, data, seq, ack, windows, file_position, f_log)
 				continue
 
 		# wait for data
 		# TODO: set timeout
 		readable = wait_for_data(inputs, timeout)
 		if readable:
-			ack, fin_ack_recv, windows = handle_pkt(readable, ack, windows)
+			ack, fin_ack_recv, windows = handle_pkt(readable, ack, windows, f_log)
 
 		if len(windows) == 0:
 			continue
@@ -173,9 +176,11 @@ def main():
 			f.seek(windows[0][WIN_FOFFSET], 0)
 			seq = windows[0][WIN_SEQ]
 			windows = []
+			timeout *= 2
 
 	f.close()
 	s.close()
+	f_log.close()
 
 if __name__ == '__main__':
 	main()

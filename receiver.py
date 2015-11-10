@@ -56,6 +56,11 @@ def main():
 	TCPHeader = struct.Struct('H H I I B B H H H')
  
 	f = open(file_name, "wb")
+	if log_file == "stdout":
+		f_log = sys.stdout
+	else:
+		f_log = open(log_file, "w")
+
 	exp_seq = INIT_SEQ
 	#now keep talking with the client
 	while 1:
@@ -69,35 +74,35 @@ def main():
 		 
 		header = data[:20]
 	   	payload = data[20:]
-		(src, dst, recv_seq, recv_ack, header,flags, recv_win, checksum, urg)\
+		(src, dst, recv_seq, recv_ack, header,recv_flags, recv_win, checksum, urg)\
 			= TCPHeader.unpack(header)
-		print src, dst, recv_seq, recv_ack, header,flags, recv_win, checksum, urg
 
-		tmp_header = make_header(src, dst, recv_seq, recv_ack, header, flags, recv_win, 0, urg)
+		write_log (src, dst, recv_seq, recv_ack, recv_flags, f_log)
+
+		tmp_header = make_header(src, dst, recv_seq, recv_ack, header, recv_flags, recv_win, 0, urg)
 		checksum_calc = calc_crc_16(tmp_header+payload)
 		if checksum_calc != checksum:
 			continue	# Wrong packet
 	
 		if recv_seq != exp_seq:
-			print 'NOT expected seq'
 			continue
-		print 'Got an uncorrupted, ordered packet'
 		exp_seq += len(payload)
 		seq = recv_ack
 		ack = recv_seq + len(payload) 
-		my_ack = make_header(my_port, src, seq, ack, 20, ACK_BIT, 1, 1, 0)
-		s.sendto(my_ack, addr) # TODO: check if this is sending back to proxy
+		flags = ACK_BIT
+		if recv_flags & FIN_BIT:
+			flags |= FIN_BIT
+		pkt = make_header(my_port, src, seq, ack, 20, flags, 0, 0, 0)
+		s.sendto(pkt, addr)
+		write_log (my_port, src, seq, ack, flags, f_log)
 
-		#TODO: record packet headers to a log file (ordered)
 		f.write(data[20:]);
 
-		if flags & FIN_BIT:
-			print 'Received FIN'
-			my_ack = make_header(my_port, src, seq, ack, 20, FIN_BIT, 1, 1, 0)
-			s.sendto(my_ack, addr)
+		if recv_flags & FIN_BIT:
 			break
 	s.close()
 	f.close()
+	f_log.close()
 
 if __name__ == '__main__':
 	main()
