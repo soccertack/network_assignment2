@@ -63,6 +63,9 @@ def wait_for_data (inputs, timeout):
 
 def handle_pkt(readable, ack, windows, f_log):
 	fin_ack_recv = 0
+	if len(windows) == 0:
+		return ack, fin_ack_recv, windows
+
 	for item in readable:
 		d = item.recvfrom(1024)
 		data = d[0]
@@ -75,7 +78,8 @@ def handle_pkt(readable, ack, windows, f_log):
 		payload = data[20:]
 		(src, dst, recv_seq, recv_ack, header,flags, recv_win, checksum, urg)= TCPHeader.unpack(header)
 
-		write_log(src, dst, recv_seq, recv_ack, flags, f_log, (datetime.now()-windows[0][WIN_TIME]).total_seconds()*1000)
+		rtt = (datetime.now()-windows[0][WIN_TIME]).total_seconds()*1000
+		write_log(src, dst, recv_seq, recv_ack, flags, f_log, rtt)
 		if flags & ACK_BIT:
 			if recv_ack == (windows[0][WIN_SEQ] + windows[0][WIN_SIZE]):
 				windows.remove(windows[0])
@@ -179,10 +183,12 @@ def main():
 		if (datetime.now() - windows[0][WIN_TIME]) > timedelta(seconds=timeout):
 			global total_retrans
 			total_retrans += len(windows)
+			total_retrans -= fin_sent
 			read_new_data = 1
 			f.seek(windows[0][WIN_SEQ], 0)
 			seq = windows[0][WIN_SEQ]
 			windows = []
+			fin_sent = 0
 
 	print 'Delivery completed successfully'
 	print 'Total bytes sent = ',total_bytes_sent
