@@ -15,8 +15,8 @@ from crc import *
 
 HOST = ''
 my_port = 20000
-sender_ip = 'localhost'
-sender_port = 20001
+sender_ip = ''
+sender_port = 0
  
 file_name = "received.txt"
 
@@ -25,7 +25,7 @@ def handle_input(argv):
 	if argc != 6:
 		print 'Usage: ./receiver.py filename listening_port sender_IP sender_port log_file  '
 		sys.exit()
-	global file_name, remote_ip, remote_port, my_port, log_file, window_size
+	global file_name, my_port, log_file, sender_ip, sender_port
 	file_name = argv[1]
 	my_port	= int(argv[2])
 	sender_ip = argv[3]
@@ -68,8 +68,6 @@ def main():
 		# receive data from client (data, addr)
 		d = s.recvfrom(1024)
 		data = d[0]
-		addr = d[1]
-		 
 		if not data: 
 			break
 		 
@@ -93,7 +91,7 @@ def main():
 		if recv_flags & FIN_BIT:
 			flags |= FIN_BIT
 		pkt = make_header(my_port, src, seq, ack, 20, flags, 0, 0, 0)
-		s.sendto(pkt, addr)
+		s.sendto(pkt, (sender_ip, sender_port))
 		write_log (my_port, src, seq, ack, flags, f_log)
 
 		f.write(data[20:]);
