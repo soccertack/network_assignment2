@@ -102,6 +102,7 @@ def try_to_send(s, data, seq, ack, windows, file_position, f_log):
 		seq = old_seq + size
 		read_new_data = 1
 		windows.append((old_seq,datetime.now(), size, file_position))
+
 		if not data:
 			fin_sent = 1
 	return read_new_data, seq, fin_sent
@@ -172,12 +173,11 @@ def main():
 			continue
 
 		# timeout check
-		if (datetime.now() - windows[0][WIN_TIME]) > timedelta(seconds=5):
+		if (datetime.now() - windows[0][WIN_TIME]) > timedelta(seconds=timeout):
 			read_new_data = 1
-			f.seek(windows[0][WIN_FOFFSET], 0)
+			f.seek(windows[0][WIN_SEQ], 0)
 			seq = windows[0][WIN_SEQ]
 			windows = []
-			timeout *= 2
 
 	f.close()
 	s.close()
