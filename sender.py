@@ -12,7 +12,7 @@ from common import *
 from datetime import timedelta
 from crc import *
 
-HOST = 'localhost'
+HOST = ''
 my_port = 20001
 
 remote_ip = 'localhost'
