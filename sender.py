@@ -19,11 +19,7 @@ remote_ip = 'localhost'
 remote_port = 20000
 seg_max_size = 576
 header_length = 5 << 4 	# header size is 32 bit * 5
-
-file_name="ls.svg"
-file_name="linux.txt"
-file_name="second.coz"
-file_name="linux-4.3.tar.xz"
+file_name=""
 
 window_size = 0
 
@@ -32,13 +28,19 @@ WIN_SEQ=0
 WIN_SIZE=2
 WIN_FOFFSET=3
 
-def gobackN():
-	print 'gobackN'
-	
+total_bytes_sent = 0
+total_seg_sent = 0
+total_retrans = 0
+
 def send_data(s, data, seq, ack, f_log):
 	flags = 0
 	if not data:
 		flags |= FIN_BIT
+	else:
+		global total_bytes_sent, total_seg_sent
+		total_bytes_sent += len(data)
+		total_seg_sent += 1
+
 	checksum = 0
 	recv_win = 0
 	urg = 0
@@ -131,9 +133,11 @@ def main():
 	inputs = []
 	inputs.append(s)
 
-	# TODO: exception for opening a file?
-	print "file_name" + file_name
-	f = open(file_name, "rb")
+	try:
+		f = open(file_name, "rb")
+	except (OSError, IOError) as e:
+		print 'file open error'
+		sys.exit()
 	if log_file == "stdout":
 		f_log = sys.stdout
 	else:
@@ -145,7 +149,7 @@ def main():
 	# initialization
 	fin_ack_recv = 0
 	read_new_data = 1
-	timeout = 1
+	timeout = 0.3
 	fin_sent = 0
 	exp_ack = 0
 	windows = []
@@ -164,7 +168,6 @@ def main():
 				continue
 
 		# wait for data
-		# TODO: set timeout
 		readable = wait_for_data(inputs, timeout)
 		if readable:
 			ack, fin_ack_recv, windows = handle_pkt(readable, ack, windows, f_log)
@@ -174,11 +177,17 @@ def main():
 
 		# timeout check
 		if (datetime.now() - windows[0][WIN_TIME]) > timedelta(seconds=timeout):
+			global total_retrans
+			total_retrans += len(windows)
 			read_new_data = 1
 			f.seek(windows[0][WIN_SEQ], 0)
 			seq = windows[0][WIN_SEQ]
 			windows = []
 
+	print 'Delivery completed successfully'
+	print 'Total bytes sent = ',total_bytes_sent
+	print 'Segments sent = ',total_seg_sent - total_retrans
+	print 'Segments retransmitted= ',total_retrans
 	f.close()
 	s.close()
 	f_log.close()

@@ -38,11 +38,9 @@ def main():
 	seq = INIT_SEQ 
 	try :
 		s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		print 'Socket created'
 	except socket.error, msg :
 		print 'Failed to create socket. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
 		sys.exit()
-	 
 	 
 	init_crc16()
 	# Bind socket to local host and port
@@ -51,8 +49,6 @@ def main():
 	except socket.error , msg:
 		print 'Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
 		sys.exit()
-		 
-	print 'Socket bind complete'
 
 	TCPHeader = struct.Struct('H H I I B B H H H')
  
@@ -98,6 +94,7 @@ def main():
 
 		if recv_flags & FIN_BIT:
 			break
+	print "Delivery completed successfully"
 	s.close()
 	f.close()
 	f_log.close()
